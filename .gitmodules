@@ -1,0 +1,3 @@
+[submodule "Treasury-Vault/lib/openzeppelin-contracts"]
+	path = Treasury-Vault/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
