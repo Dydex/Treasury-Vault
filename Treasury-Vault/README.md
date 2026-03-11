@@ -1,66 +1,18 @@
-## Foundry
+# Treasury Vault
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A Smart contract treasury management system built on Solidity for secure token operations with multisignature approval and decentralized claim distribution.
 
-Foundry consists of:
+## Features
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **Treasury** - Manages token deposits, withdrawals, and balance tracking with secure transfers
+- **TransactionProposal** - Multisig system requiring quorum consensus for executing treasury transactions
+- **AccessRoles** - Interface-based role management for admins and signers with custom permissions
+- **ClaimDistribution** - Merkle tree proof verification for distributing tokens to eligible users
+- **DelayTime** - Time-lock mechanism enforcing minimum delays between proposal and execution
 
-## Documentation
+## Tech Stack
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+- **Solidity** ^0.8.13
+- **Foundry** - Smart contract development
+- **OpenZeppelin Contracts** - Security standards
+- **Forge-std** - Testing utilities

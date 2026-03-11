@@ -3,12 +3,11 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract AccesRoles is AccesControl { 
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+contract AccessRoles is AccessControl {
     bytes32 public constant SIGNERS_ROLE = keccak256("SIGNERS_ROLE");
 
-    uint public quorum;
-    uint public totalSigners;
+    uint256 public quorum;
+    uint256 public totalSigners;
 
     address public owner;
     address[] public signers;
@@ -35,15 +34,14 @@ contract AccesRoles is AccesControl {
         totalSigners = _totalSigners;
     }
 
-    
-    function addCosigners (address[] calldata _cosigners) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        for (uint i = 0; i < _cosigners.length; i++) {
+    function addCosigners(address[] calldata _cosigners) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        for (uint256 i = 0; i < _cosigners.length; i++) {
             if (_cosigners.length > totalSigners) {
                 revert CoSignersAreGreaterThanTotalSigners();
             } else if (_cosigners[i] == address(0)) {
                 revert InvalidAddress();
             } else {
-                for (uint j = 0; j < signers.length; j++) {
+                for (uint256 j = 0; j < signers.length; j++) {
                     if (_cosigners[i] == signers[j]) {
                         revert SignerAlreadyExists();
                     }
@@ -55,19 +53,15 @@ contract AccesRoles is AccesControl {
         }
     }
 
-    function hasRole(bytes32 role, address account) external view returns (bool){
-        return hasRole(role, account);
-    };
-
     function getSignerRole() external view returns (bytes32) {
         return SIGNERS_ROLE;
-    };
+    }
 
     function getDefaultAdminRole() external view returns (bytes32) {
         return DEFAULT_ADMIN_ROLE;
-    };
+    }
 
-    function getQuorum() external view returns (uint) {
+    function getQuorum() external view returns (uint256) {
         return quorum;
-    }; 
+    }
 }

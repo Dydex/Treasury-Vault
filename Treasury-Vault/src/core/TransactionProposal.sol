@@ -4,35 +4,41 @@ pragma solidity ^0.8.13;
 import {IAccessRoles} from "../interfaces/IAcessRoles.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {IDelayTime} from "../interfaces/IDelayTime.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TransactionProposal {
+contract TransactionProposal is ReentrancyGuard {
     IAccessRoles public accessRoles;
+
+    IDelayTime public delayTime;
 
     IERC20 public token;
 
-    constructor(address _accessRoles, address _tokenAddress) {
+    uint256 public quorum;
+
+    constructor(address _accessRoles, address _tokenAddress, address _delayTime) {
         accessRoles = IAccessRoles(_accessRoles);
         token = IERC20(_tokenAddress);
         delayTime = IDelayTime(_delayTime);
+
+        quorum = accessRoles.getQuorum();
     }
 
     struct Transaction {
+        address proposer;
         address to;
         uint256 value;
         bool executed;
         uint256 signatureCount;
         bool created;
-        uint256 submissionTime;
+        uint256 creationTime;
         uint256 executionTime;
-        uint256 approvalTime;
     }
-
-    uint256 quorum = accessRoles.getQuorum();
     uint256 public transactionCount;
-    uint public proposalFee;
+    uint256 public proposalFee;
 
     mapping(uint256 => Transaction) public transactions;
     mapping(uint256 => mapping(address => bool)) public confirmedSignatories;
+    mapping(uint256 => mapping(address => bool)) public paidProposalFee;
 
     event TransactionExecuted(uint256 indexed transactionId, address indexed to, uint256 value);
 
@@ -40,20 +46,26 @@ contract TransactionProposal {
     error QuorumReached();
     error TransactionAlreadyExists();
     error NotASigner();
+    error InvalidProposalFee();
+    error TransactionAlreadyExecuted();
+    error TransactionAlreadyConfirmedByThisSigner();
+    error QuorumNotEnough();
+    error ExecutionTimeNotSet();
+    error DelayTimeNotElapsed();
+    error TransactionDoesntExist();
+    error NotADefaultAmin();
 
-    function setProposalFee(uint _fee) external {
+    function setProposalFee(uint256 _fee) external {
         if (!accessRoles.hasRole(accessRoles.getDefaultAdminRole(), msg.sender)) {
-            revert NotASigner();
+            revert NotADefaultAmin();
         }
         proposalFee = _fee;
     }
 
-    function createTransaction(address _to, uint256 _value) external payable {
-        if (proposalFee != msg.value) 
+    function createTransaction(address _to, uint256 _value) external payable nonReentrant {
+        if (proposalFee != msg.value) {
             revert InvalidProposalFee();
-
-        // check if they have paid for this tnx by id,bool 
-
+        }
 
         uint256 transactionId = transactionCount++;
 
@@ -61,11 +73,14 @@ contract TransactionProposal {
             revert InvalidAddress();
         }
 
+        paidProposalFee[transactionId][msg.sender] = true;
+
         if (transactions[transactionId].created) {
             revert TransactionAlreadyExists();
-        } // check this Id stuff later
+        }
 
         transactions[transactionId] = Transaction({
+            proposer: msg.sender,
             to: _to,
             value: _value,
             executed: false,
@@ -73,14 +88,10 @@ contract TransactionProposal {
             created: true,
             creationTime: block.timestamp,
             executionTime: 0
-            approvalTime: block.timestamp + delayTime.getApprovalDuration();
         });
-        confirmedSignatories[transactionId][msg.sender] = true;
     }
 
-    
-
-    function confirmTransaction(uint256 _transactionId) external {
+    function confirmTransaction(uint256 _transactionId) external nonReentrant {
         require(accessRoles.hasRole(accessRoles.getSignerRole(), msg.sender), "Not A Signers");
 
         Transaction storage transaction = transactions[_transactionId];
@@ -93,11 +104,11 @@ contract TransactionProposal {
             revert TransactionAlreadyExists();
         }
 
-         if (transaction.executed) {
+        if (transaction.executed) {
             revert TransactionAlreadyExecuted();
         }
 
-         if (confirmedSignatories[_transactionId][msg.sender]) {
+        if (confirmedSignatories[_transactionId][msg.sender]) {
             revert TransactionAlreadyConfirmedByThisSigner();
         }
 
@@ -107,13 +118,13 @@ contract TransactionProposal {
         if (transaction.signatureCount == quorum) {
             transaction.executionTime = block.timestamp + delayTime.getExecutionDuration();
         }
-
-
-
-        executeTransaction(_transactionId); // check later 
     }
 
-    function executeTransaction(uint256 _transactionId) internal {
+    function executeTransaction(uint256 _transactionId) external nonReentrant {
+        if (!accessRoles.hasRole(accessRoles.getSignerRole(), msg.sender)) {
+            revert NotASigner();
+        }
+
         Transaction storage transaction = transactions[_transactionId];
 
         if (transaction.signatureCount != quorum) {
@@ -132,14 +143,16 @@ contract TransactionProposal {
             revert DelayTimeNotElapsed();
         }
 
-        transaction.executed = true;
-        (bool success, ) = transaction.to.call{value: transaction.value}("");
-        require(success, "TransactionExecution failed");
+        if (transaction.signatureCount == quorum) {
+            transaction.executed = true;
+
+            token.transfer(transaction.to, transaction.value);
+        }
 
         emit TransactionExecuted(_transactionId, transaction.to, transaction.value);
     }
 
-    function cancelTransaction(uint256 _transactionId) external {
+    function cancelTransaction(uint256 _transactionId) external nonReentrant {
         if (!accessRoles.hasRole(accessRoles.getSignerRole(), msg.sender)) {
             revert NotASigner();
         }
@@ -157,22 +170,19 @@ contract TransactionProposal {
         if (transaction.executed) {
             revert TransactionAlreadyExecuted();
         }
-        
+
         if (transaction.signatureCount != quorum) {
             revert QuorumNotEnough();
         }
 
         if (transaction.signatureCount == quorum) {
-            (bool success, ) = payable(transaction.to).call{value: proposalFee}("");
+            (bool success,) = payable(transaction.proposer).call{value: proposalFee}("");
             require(success, "TransactionExecution failed");
 
             delete transactions[_transactionId];
         }
-
-    
-        
     }
 
-    receive() external payable {};
-    fallback() external payable {};
+    receive() external payable {}
+    fallback() external payable {}
 }

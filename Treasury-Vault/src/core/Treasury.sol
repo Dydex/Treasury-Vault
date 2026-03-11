@@ -2,88 +2,83 @@
 pragma solidity ^0.8.13;
 
 import {IERC20} from "../interfaces/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract Treasury {
-
+contract Treasury is ReentrancyGuard {
     IERC20 public token;
 
     constructor(address _tokenAddress) {
         token = IERC20(_tokenAddress);
-
-    } 
-
-uint public totalBalance;
-
-mapping(address => uint) public balances;
-
-error InvalidAmount();
-error InsufficientFunds();
-error OnlyTreasuryCanCallThisFunction();
-
-event DepositSuccessFul(address indexed sender, uint value);
-
-function depositToken(uint _amount) external {
-    if (_amount == 0) {
-        revert InvalidAmount();
     }
 
-    if (token.balanceOf(msg.sender) < _amount) {
-        revert InsufficientFunds();
+    uint256 public totalBalance;
+
+    mapping(address => uint256) public balances;
+
+    error InvalidAmount();
+    error InvalidAddress();
+    error InsufficientFunds();
+    error OnlyTreasuryCanCallThisFunction();
+
+    event DepositSuccessFul(address indexed sender, uint256 amount);
+
+    function depositToken(uint256 _amount) external {
+        if (_amount == 0) {
+            revert InvalidAmount();
+        }
+
+        if (token.balanceOf(msg.sender) < _amount) {
+            revert InsufficientFunds();
+        }
+
+        token.transferFrom(msg.sender, address(this), _amount);
+
+        balances[msg.sender] += _amount;
+
+        totalBalance += _amount;
+
+        emit DepositSuccessFul(msg.sender, _amount);
     }
 
-    token.transferFrom(msg.sender, address(this), _amount);
+    function withdrawToken(uint256 _amount) external {
+        if (_amount == 0) {
+            revert InvalidAmount();
+        }
 
-    balances[msg.sender] += _amount;
+        if (balances[msg.sender] < _amount) {
+            revert InsufficientFunds();
+        }
 
-    totalBalance += _amount;
+        token.transfer(msg.sender, _amount);
 
-    emit DepositSuccessFul(msg.sender, _value);
-}
+        balances[msg.sender] -= _amount;
 
-function withdrawToken(uint _amount) external {
-    if (_amount == 0) {
-        revert InvalidAmount();
+        totalBalance -= _amount;
     }
 
-    if (balances[msg.sender] < _amount) {
-        revert InsufficientFunds();
+    function getUserBalance() external view returns (uint256) {
+        return balances[msg.sender];
     }
 
-    token.transfer(msg.sender, _amount);
+    function withdrawFundsForProposal(address _to, uint256 _amount) external nonReentrant {
+        if (msg.sender != address(this)) {
+            revert OnlyTreasuryCanCallThisFunction();
+        }
 
-    balances[msg.sender] -= _amount;
+        if (_to == address(0)) {
+            revert InvalidAddress();
+        }
 
-    totalBalance -= _amount;
-}
+        if (_amount == 0) {
+            revert InvalidAmount();
+        }
 
-function getUserBalance() external view returns (uint) {
-    return balances[msg.sender];
-}
+        if (totalBalance < _amount) {
+            revert InsufficientFunds();
+        }
 
-function withdrawFundsForProposal(address _to, uint _amount) external  {
+        token.transfer(_to, _amount);
 
-    if ( msg.sender != address(this)) {
-        revert OnlyTreasuryCanCallThisFunction();
+        totalBalance -= _amount;
     }
-
-    if( _to == address(0)) {
-        revert InvalidAddress();
-    }
-
-    if (_amount == 0) {
-        revert InvalidAmount();
-    }
-
-    if (totalBalance < _amount) {
-        revert InsufficientFunds();
-    }
-
-    token.transfer(_to, _amount);
-
-    totalBalance -= _amount;
-
-}
-
-function emergencyWithdrawAll()
-
 }
