@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 contract AccessRoles is AccessControl {
     bytes32 public constant SIGNERS_ROLE = keccak256("SIGNERS_ROLE");
@@ -12,18 +13,13 @@ contract AccessRoles is AccessControl {
     address public owner;
     address[] public signers;
 
-    error QuorumIsGreaterThanTotalSigners();
-    error CoSignersAreGreaterThanTotalSigners();
-    error SignerAlreadyExists();
-    error InvalidAddress();
-
     constructor(address _owner, uint8 _quorum, uint8 _totalSigners) {
         if (_quorum >= _totalSigners) {
-            revert QuorumIsGreaterThanTotalSigners();
+            revert Errors.QuorumIsGreaterThanTotalSigners();
         }
 
         if (_owner == address(0)) {
-            revert InvalidAddress();
+            revert Errors.InvalidAddress();
         }
 
         owner = _owner;
@@ -37,13 +33,13 @@ contract AccessRoles is AccessControl {
     function addCosigners(address[] calldata _cosigners) external onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < _cosigners.length; i++) {
             if (_cosigners.length > totalSigners) {
-                revert CoSignersAreGreaterThanTotalSigners();
+                revert Errors.CoSignersAreGreaterThanTotalSigners();
             } else if (_cosigners[i] == address(0)) {
                 revert InvalidAddress();
             } else {
                 for (uint256 j = 0; j < signers.length; j++) {
                     if (_cosigners[i] == signers[j]) {
-                        revert SignerAlreadyExists();
+                        revert Errors.SignerAlreadyExists();
                     }
                 }
             }

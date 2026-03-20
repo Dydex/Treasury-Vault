@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {IAccessRoles} from "../interfaces/IAcessRoles.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {IDelayTime} from "../interfaces/IDelayTime.sol";
+import {Errors} from "../libraries/Errors.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TransactionProposal is ReentrancyGuard {
@@ -42,41 +43,29 @@ contract TransactionProposal is ReentrancyGuard {
 
     event TransactionExecuted(uint256 indexed transactionId, address indexed to, uint256 value);
 
-    error InvalidAddress();
-    error QuorumReached();
-    error TransactionAlreadyExists();
-    error NotASigner();
-    error InvalidProposalFee();
-    error TransactionAlreadyExecuted();
-    error TransactionAlreadyConfirmedByThisSigner();
-    error QuorumNotEnough();
-    error ExecutionTimeNotSet();
-    error DelayTimeNotElapsed();
-    error TransactionDoesntExist();
-    error NotADefaultAmin();
 
     function setProposalFee(uint256 _fee) external {
         if (!accessRoles.hasRole(accessRoles.getDefaultAdminRole(), msg.sender)) {
-            revert NotADefaultAmin();
+            revert Errors.NotADefaultAdmin();
         }
         proposalFee = _fee;
     }
 
     function createTransaction(address _to, uint256 _value) external payable nonReentrant {
         if (proposalFee != msg.value) {
-            revert InvalidProposalFee();
+            revert Errors.InvalidProposalFee();
         }
 
         uint256 transactionId = transactionCount++;
 
         if (_to == address(0)) {
-            revert InvalidAddress();
+            revert Errors.InvalidAddress();
         }
 
         paidProposalFee[transactionId][msg.sender] = true;
 
         if (transactions[transactionId].created) {
-            revert TransactionAlreadyExists();
+            revert Errors.TransactionAlreadyExists();
         }
 
         transactions[transactionId] = Transaction({
@@ -97,19 +86,19 @@ contract TransactionProposal is ReentrancyGuard {
         Transaction storage transaction = transactions[_transactionId];
 
         if (transactions[_transactionId].signatureCount == quorum) {
-            revert QuorumReached();
+            revert Errors.QuorumReached();
         }
 
         if (!transaction.created) {
-            revert TransactionAlreadyExists();
+            revert Errors.TransactionAlreadyExists();
         }
 
         if (transaction.executed) {
-            revert TransactionAlreadyExecuted();
+            revert Errors.TransactionAlreadyExecuted();
         }
 
         if (confirmedSignatories[_transactionId][msg.sender]) {
-            revert TransactionAlreadyConfirmedByThisSigner();
+            revert Errors.TransactionAlreadyConfirmedByThisSigner();
         }
 
         confirmedSignatories[_transactionId][msg.sender] = true;
@@ -122,25 +111,25 @@ contract TransactionProposal is ReentrancyGuard {
 
     function executeTransaction(uint256 _transactionId) external nonReentrant {
         if (!accessRoles.hasRole(accessRoles.getSignerRole(), msg.sender)) {
-            revert NotASigner();
+            revert Errors.NotASigner();
         }
 
         Transaction storage transaction = transactions[_transactionId];
 
         if (transaction.signatureCount != quorum) {
-            revert QuorumNotEnough();
+            revert Errors.QuorumNotEnough();
         }
 
         if (transaction.executed) {
-            revert TransactionAlreadyExecuted();
+            revert Errors.TransactionAlreadyExecuted();
         }
 
         if (transaction.executionTime == 0) {
-            revert ExecutionTimeNotSet();
+            revert Errors.ExecutionTimeNotSet();
         }
 
         if (block.timestamp < transaction.executionTime) {
-            revert DelayTimeNotElapsed();
+            revert Errors.DelayTimeNotElapsed();
         }
 
         if (transaction.signatureCount == quorum) {
@@ -154,25 +143,25 @@ contract TransactionProposal is ReentrancyGuard {
 
     function cancelTransaction(uint256 _transactionId) external nonReentrant {
         if (!accessRoles.hasRole(accessRoles.getSignerRole(), msg.sender)) {
-            revert NotASigner();
+            revert Errors.NotASigner();
         }
 
         Transaction storage transaction = transactions[_transactionId];
 
         if (block.timestamp > transaction.executionTime) {
-            revert TransactionAlreadyExecuted();
+            revert Errors.TransactionAlreadyExecuted();
         }
 
         if (!transaction.created) {
-            revert TransactionDoesntExist();
+            revert Errors.TransactionDoesntExist();
         }
 
         if (transaction.executed) {
-            revert TransactionAlreadyExecuted();
+            revert Errors.TransactionAlreadyExecuted();
         }
 
         if (transaction.signatureCount != quorum) {
-            revert QuorumNotEnough();
+            revert Errors.QuorumNotEnough();
         }
 
         if (transaction.signatureCount == quorum) {

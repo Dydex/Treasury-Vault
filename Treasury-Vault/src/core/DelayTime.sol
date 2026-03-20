@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {IAccessRoles} from "../interfaces/IAcessRoles.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 contract DelayTime {
     IAccessRoles public accessRoles;
@@ -12,11 +13,9 @@ contract DelayTime {
         accessRoles = IAccessRoles(_accessRoles);
     }
 
-    error NotADefaultAmin();
-
     function setExecutionDuration(uint256 _duration) external {
         if (!accessRoles.hasRole(accessRoles.getDefaultAdminRole(), msg.sender)) {
-            revert NotADefaultAmin();
+            revert Errors.NotADefaultAdmin();
         }
 
         executionDuration = _duration * 1 hours;

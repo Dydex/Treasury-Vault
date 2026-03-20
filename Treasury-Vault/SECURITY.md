@@ -33,9 +33,13 @@ This system is built with security measures by implementing multiple layers of p
 
 - Some event emissions reference wrong variable names due to small time frame to properly review this system.
 
-- An emergency pause function that could freeze treasury operations if multiple signers addresses are compromised. 
+- An emergency pause function that could freeze treasury operations if multiple signers addresses are compromised.
+
+- I havent tested for IERC20 tokens functionality because of time.
 
 - Adding comprehensive NatSpec documentation would help future auditors and developers understand the expected behavior.
 
 - Adding emergency withdrawal function to all contract that deals with funds or token incase of attacks. This couldnt be implememented becuse of time 
+
+
 
